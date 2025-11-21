@@ -1,0 +1,15 @@
+{
+    "workbench.colorTheme": "Visual Studio Dark - C++",
+    "code-runner.runInTerminal": true,
+
+    "code-runner.executorMapByFileExtension": {
+        ".cpp": "cd \"$dir\" ; if ($?) { g++ \"$fileName\" -Iinclude -o \"$fileNameWithoutExt\" } ; if ($?) { .\\\"$fileNameWithoutExt\" }"
+    },
+    "files.associations": {
+        "vector": "cpp",
+        "cmath": "cpp",
+        "ostream": "cpp",
+        "iostream": "cpp",
+        "algorithm": "cpp"
+    }
+}
