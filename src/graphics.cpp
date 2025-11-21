@@ -1,221 +1,240 @@
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-
-#include <iostream>
-#include <string>
-#include <chrono>
-
 #include "graphics.h"
 
-const char* vertexShaderSrc = R"(
-#version 330 core
-layout(location=0) in vec3 aPos;
-layout(location=1) in vec3 aNormal;
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <iostream>
 
-out vec3 FragPos;
-out vec3 Normal;
+// -----------------------------------------
+// Global camera state for mouse-look
+// -----------------------------------------
+float yaw   = -90.0f;
+float pitch = 0.0f;
+double lastX = 400, lastY = 300;
+bool firstMouse = true;
 
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;
-
-void main() {
-    FragPos = vec3(model * vec4(aPos, 1.0));
-    Normal = mat3(transpose(inverse(model))) * aNormal; 
-    gl_Position = projection * view * vec4(FragPos, 1.0);
-}
-)";
-
-const char* fragmentShaderSrc = R"(
-#version 330 core
-out vec4 FragColor;
-
-in vec3 FragPos;
-in vec3 Normal;
-
-uniform vec3 lightDir;
-uniform vec3 objectColor;
-
-void main()
+// -----------------------------------------
+// Mouse-look callback
+// -----------------------------------------
+void mouseCallback(GLFWwindow* window, double xpos, double ypos)
 {
-    vec3 norm = normalize(Normal);
-    vec3 light = normalize(-lightDir);
-
-    // Basic diffuse shading
-    float diff = max(dot(norm, light), 0.0);
-
-    // ★ Soften the lighting transition
-    diff = pow(diff, 0.6);  // lower = softer gradient
-
-    // Ambient light to avoid pure black sides
-    float ambient = 0.25;
-
-    float lighting = ambient + diff;
-
-    FragColor = vec4(objectColor * lighting, 1.0);
-}
-)";
-
-void InitializeGraphics(){
-
-}
-
-static GLuint compileShader(GLenum type, const char* src) {
-    GLuint s = glCreateShader(type);
-    glShaderSource(s, 1, &src, nullptr);
-    glCompileShader(s);
-    GLint ok = 0;
-    glGetShaderiv(s, GL_COMPILE_STATUS, &ok);
-    if (!ok) {
-        char buf[1024]; glGetShaderInfoLog(s, sizeof(buf), nullptr, buf);
-        std::cerr << "Shader compile error: " << buf << std::endl;
-    }
-    return s;
-}
-
-GLuint makeProgram(const char* vsSrc, const char* fsSrc) {
-    GLuint vs = compileShader(GL_VERTEX_SHADER, vsSrc);
-    GLuint fs = compileShader(GL_FRAGMENT_SHADER, fsSrc);
-    GLuint prog = glCreateProgram();
-    glAttachShader(prog, vs);
-    glAttachShader(prog, fs);
-    glLinkProgram(prog);
-    GLint ok=0; glGetProgramiv(prog, GL_LINK_STATUS, &ok);
-    if(!ok){ char buf[1024]; glGetProgramInfoLog(prog,sizeof(buf),nullptr,buf); std::cerr<<"Link error: "<<buf<< std::endl; }
-    glDeleteShader(vs); glDeleteShader(fs);
-    return prog;
-}
-
-GLFWwindow* initializeWindow() {
-    if (!glfwInit()) {
-        std::cerr << "Failed to init GLFW\n";
-        return nullptr;
+    if (firstMouse) {
+        lastX = xpos;
+        lastY = ypos;
+        firstMouse = false;
     }
 
-    // Request OpenGL 3.3 core
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    float xoffset = float(xpos - lastX);
+    float yoffset = float(lastY - ypos);
 
-    GLFWwindow* window = glfwCreateWindow(800, 600, "Cube", nullptr, nullptr);
-    if (!window) {
-        std::cerr << "Failed to create window\n";
-        glfwTerminate();
-        return nullptr;
-    }
+    lastX = xpos;
+    lastY = ypos;
 
+    float sensitivity = 0.1f;
+    xoffset *= sensitivity;
+    yoffset *= sensitivity;
+
+    yaw   += xoffset;
+    pitch += yoffset;
+
+    if (pitch > 89.0f)  pitch = 89.0f;
+    if (pitch < -89.0f) pitch = -89.0f;
+}
+
+// -----------------------------------------
+// Window + GL setup
+// -----------------------------------------
+GLFWwindow* initializeWindow()
+{
+    glfwInit();
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR,3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR,3);
+    glfwWindowHint(GLFW_OPENGL_CORE_PROFILE,GLFW_OPENGL_CORE_PROFILE);
+
+    GLFWwindow* window = glfwCreateWindow(800,600,"Grid + Plane",nullptr,nullptr);
     glfwMakeContextCurrent(window);
 
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-        std::cerr << "Failed to load GL functions\n";
-        glfwDestroyWindow(window);
-        glfwTerminate();
-        return nullptr;
-    }
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetCursorPosCallback(window, mouseCallback);
+
+    gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
+    glEnable(GL_DEPTH_TEST);
 
     return window;
 }
 
-GLuint createPlaneObject(glm::vec3 position, glm::vec3 orientation, GLFWwindow* window){
-      // Cube vertices (position)
-    float vertices[] = {
-    // positions        // normals
-    -0.5f,-0.5f,-0.5f,  0.0f, 0.0f,-1.0f,
-     0.5f,-0.5f,-0.5f,  0.0f, 0.0f,-1.0f,
-     0.5f, 0.5f,-0.5f,  0.0f, 0.0f,-1.0f,
-    -0.5f, 0.5f,-0.5f,  0.0f, 0.0f,-1.0f,
-    -0.5f,-0.5f, 0.5f,  0.0f, 0.0f, 1.0f,
-     0.5f,-0.5f, 0.5f,  0.0f, 0.0f, 1.0f,
-     0.5f, 0.5f, 0.5f,  0.0f, 0.0f, 1.0f,
-    -0.5f, 0.5f, 0.5f,  0.0f, 0.0f, 1.0f
+// -----------------------------------------
+// Shader helpers
+// -----------------------------------------
+GLuint compileShader(GLenum type, const char* src)
+{
+    GLuint sh = glCreateShader(type);
+    glShaderSource(sh, 1, &src, nullptr);
+    glCompileShader(sh);
+
+    int success;
+    glGetShaderiv(sh, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        char log[512];
+        glGetShaderInfoLog(sh, 512, nullptr, log);
+        std::cerr << "Shader error:\n" << log << "\n";
+    }
+    return sh;
+}
+
+GLuint makeProgram(const char* vsSrc, const char* fsSrc)
+{
+    GLuint vs = compileShader(GL_VERTEX_SHADER, vsSrc);
+    GLuint fs = compileShader(GL_FRAGMENT_SHADER, fsSrc);
+
+    GLuint prog = glCreateProgram();
+    glAttachShader(prog, vs);
+    glAttachShader(prog, fs);
+    glLinkProgram(prog);
+
+    glDeleteShader(vs);
+    glDeleteShader(fs);
+    return prog;
+}
+
+// -----------------------------------------
+// Plane object
+// -----------------------------------------
+GLuint createPlaneObject(glm::vec3 pos, glm::vec3 ori, GLFWwindow* window)
+{
+    float verts[] = {
+        -1,0,-1,   1,0,-1,   1,0,1,   -1,0,1
     };
+    unsigned int idx[] = {0,1,2, 2,3,0};
 
+    GLuint VAO,VBO,EBO;
+    glGenVertexArrays(1,&VAO);
+    glGenBuffers(1,&VBO);
+    glGenBuffers(1,&EBO);
 
+    glBindVertexArray(VAO);
 
-    // indices for 12 triangles (two per cube face)
-    unsigned int indices[] = {
-        0,1,2, 2,3,0, // back
-        4,5,6, 6,7,4, // front
-        4,5,1, 1,0,4, // bottom
-        7,6,2, 2,3,7, // top
-        4,0,3, 3,7,4, // left
-        5,1,2, 2,6,5  // right
-    };
+    glBindBuffer(GL_ARRAY_BUFFER,VBO);
+    glBufferData(GL_ARRAY_BUFFER,sizeof(verts),verts,GL_STATIC_DRAW);
 
-    GLuint VAO, VBO, EBO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER,sizeof(idx),idx,GL_STATIC_DRAW);
 
-    // bind and upload
+    glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,3*sizeof(float),(void*)0);
+    glEnableVertexAttribArray(0);
+
+    return VAO;
+}
+
+// -----------------------------------------
+// XY grid
+// -----------------------------------------
+GLuint createGridLines(GLFWwindow* window)
+{
+    const int N = 20;
+
+    int lines = (N * 2) + 1;        // -20..20 = 41
+    int floatsPerLine = 12;         // 4 vertices * 3 comps
+    float verts[41 * 12];           // 492 floats
+
+    int ptr = 0;
+
+    for (int i = -N; i <= N; i++)
+    {
+        float f = float(i);
+
+        verts[ptr++] = f; verts[ptr++] = 0; verts[ptr++] = -N;
+        verts[ptr++] = f; verts[ptr++] = 0; verts[ptr++] =  N;
+
+        verts[ptr++] = -N; verts[ptr++] = 0; verts[ptr++] = f;
+        verts[ptr++] =  N; verts[ptr++] = 0; verts[ptr++] = f;
+    }
+
+    GLuint VAO, VBO;
+    glGenVertexArrays(1,&VAO);
+    glGenBuffers(1,&VBO);
+
     glBindVertexArray(VAO);
 
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STATIC_DRAW);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-    // pos attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,3*sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
+    glBindVertexArray(0);
+
+    return VAO;
+}
 
 
-    GLuint program = makeProgram(vertexShaderSrc, fragmentShaderSrc);
-    glUseProgram(program);
+// -----------------------------------------
+// RENDER LOOP — moved into graphics.cpp
+// -----------------------------------------
+void render(GLFWwindow* window, GLuint planeVAO, GLuint gridVAO)
+{
+    const char* vs = R"(
+        #version 330 core
+        layout (location=0) in vec3 aPos;
 
-    glEnable(GL_DEPTH_TEST);
+        uniform mat4 view;
+        uniform mat4 proj;
+        uniform mat4 model;
 
-    // Set cube color (monotone)
-    GLint colorLoc = glGetUniformLocation(program, "objectColor");
-    glUniform3f(colorLoc, 1.0f, 1.0f, 1.0f); // light grey
+        void main() {
+            gl_Position = proj * view * model * vec4(aPos, 1.0);
+        }
+    )";
 
-    // Set light direction
-    GLint lightLoc = glGetUniformLocation(program, "lightDir");
-    glUniform3f(lightLoc, -1.0f, -1.0f, -1.0f); // coming from top-left-front
+    const char* fsPlane = R"(
+        #version 330 core
+        out vec4 FragColor;
+        void main() { FragColor = vec4(0.5,0.5,0.5,1.0); }
+    )";
 
-    GLint modelLoc = glGetUniformLocation(program, "model");
-    GLint viewLoc = glGetUniformLocation(program, "view");
-    GLint projLoc = glGetUniformLocation(program, "projection");
+    const char* fsGrid = R"(
+        #version 330 core
+        out vec4 FragColor;
+        void main() { FragColor = vec4(0.1,0.1,0.1,1.0); }
+    )";
 
-    // projection matrix (perspective)
-    glm::mat4 model = glm::mat4(1.0f);
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, value_ptr(model));
+    GLuint planeProg = makeProgram(vs, fsPlane);
+    GLuint gridProg  = makeProgram(vs, fsGrid);
 
-
-    // simple camera
-    glm::mat4 view = lookAt(glm::vec3(3.0f, 3.0f, 3.0f), glm::vec3(0.0f), glm::vec3(0.0f,1.0f,0.0f));
-    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, value_ptr(view));
-
-    glm::mat4 projection = glm::perspective(45.0f * (3.1415926f / 180.0f), 800.0f/600.0f, 0.1f, 100.0f);
-    glUniformMatrix4fv(projLoc, 1, GL_FALSE, value_ptr(projection));
-
-
-    while (!glfwWindowShouldClose(window)) {
-        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) break;
-
-        glClearColor(0.2f, 0.2f, 0.2f, 1.0f); // background grey
+    while (!glfwWindowShouldClose(window))
+    {
+        glClearColor(0.9,0.9,0.95,1.0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glBindVertexArray(VAO);
-        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+        // Camera direction from mouse-look
+        glm::vec3 front;
+        front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+        front.y = sin(glm::radians(pitch));
+        front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+
+        glm::vec3 cameraPos = glm::vec3(0,2,5);
+
+        glm::mat4 view = glm::lookAt(cameraPos, cameraPos + glm::normalize(front), glm::vec3(0,1,0));
+        glm::mat4 proj = glm::perspective(glm::radians(60.0f), 800.f/600.f, 0.1f, 200.f);
+
+        // ---- Plane ----
+        glUseProgram(planeProg);
+        glUniformMatrix4fv(glGetUniformLocation(planeProg,"view"),1,GL_FALSE,glm::value_ptr(view));
+        glUniformMatrix4fv(glGetUniformLocation(planeProg,"proj"),1,GL_FALSE,glm::value_ptr(proj));
+        glUniformMatrix4fv(glGetUniformLocation(planeProg,"model"),1,GL_FALSE,glm::value_ptr(glm::mat4(1.0f)));
+
+        glBindVertexArray(planeVAO);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+        // ---- Grid ----
+        glUseProgram(gridProg);
+        glUniformMatrix4fv(glGetUniformLocation(gridProg,"view"),1,GL_FALSE,glm::value_ptr(view));
+        glUniformMatrix4fv(glGetUniformLocation(gridProg,"proj"),1,GL_FALSE,glm::value_ptr(proj));
+        glUniformMatrix4fv(glGetUniformLocation(gridProg,"model"),1,GL_FALSE,glm::value_ptr(glm::mat4(1.0f)));
+
+        glBindVertexArray(gridVAO);
+        glDrawArrays(GL_LINES, 0, 160 * 2);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
-
-   // cleanup
-   glDeleteProgram(program);
-   glDeleteBuffers(1, &VBO);
-   glDeleteBuffers(1, &EBO);
-   glDeleteVertexArrays(1, &VAO);
-
-   glfwTerminate();
 }

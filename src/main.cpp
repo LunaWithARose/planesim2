@@ -1,25 +1,16 @@
-// src/main.cpp
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-
-#include <iostream>
-#include <string>
-#include <chrono>
 #include "graphics.h"
+#include <glm/glm.hpp>
 
-using namespace std;
-using namespace glm;
-
-int main() {
-
-    vec3 position = {0, 0, 0};
-    vec3 orientation = {0, 0, 0};
-
+int main()
+{
     GLFWwindow* window = initializeWindow();
-    GLuint program = createPlaneObject(position, orientation, window);
+    if (!window) return -1;
+
+    GLuint planeVAO = createPlaneObject({0,0,0}, {0,0,0}, window);
+    GLuint gridVAO  = createGridLines(window);
+
+    render(window, planeVAO, gridVAO);
+
+    glfwTerminate();
     return 0;
 }
