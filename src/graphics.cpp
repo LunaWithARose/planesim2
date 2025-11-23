@@ -4,57 +4,96 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <iostream>
 
-// -----------------------------------------
-// Global camera state for mouse-look
-// -----------------------------------------
+
 float yaw   = -90.0f;
 float pitch = 0.0f;
+float zoom = 5.0f;
 double lastX = 400, lastY = 300;
 bool firstMouse = true;
+bool rotating = false;
+int width = 800;
+int height = 500;
 
-// -----------------------------------------
-// Mouse-look callback
-// -----------------------------------------
 void mouseCallback(GLFWwindow* window, double xpos, double ypos)
 {
-    if (firstMouse) {
+    static float lastX = 400, lastY = 300;
+    static bool firstMouse = true;
+
+    if (!rotating)  // <---- Add this guard
+    {
+        firstMouse = true;       // reset when not rotating
+        return;
+    }
+
+    if (firstMouse)
+    {
         lastX = xpos;
         lastY = ypos;
         firstMouse = false;
     }
 
-    float xoffset = float(xpos - lastX);
-    float yoffset = float(lastY - ypos);
-
+    float xoffset = xpos - lastX;
+    float yoffset = lastY - ypos; 
     lastX = xpos;
     lastY = ypos;
 
-    float sensitivity = 0.1f;
+    float sensitivity = 0.2f;
     xoffset *= sensitivity;
     yoffset *= sensitivity;
 
     yaw   += xoffset;
     pitch += yoffset;
 
-    if (pitch > 89.0f)  pitch = 89.0f;
-    if (pitch < -89.0f) pitch = -89.0f;
+    // clamp pitch to prevent flipping
+    pitch = glm::clamp(pitch, -89.0f, 89.0f);
 }
 
-// -----------------------------------------
-// Window + GL setup
-// -----------------------------------------
+void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
+{
+    if (button == GLFW_MOUSE_BUTTON_LEFT)
+    {
+        if (action == GLFW_PRESS)
+        {
+            rotating = true;
+            firstMouse = true;   // re-sync starting point when click begins
+        }
+        else if (action == GLFW_RELEASE)
+        {
+            rotating = false;
+        }
+    }
+}
+
+void scrollCallback(GLFWwindow* window, double xoffset, double yoffset)
+{
+    zoom -= yoffset;
+    zoom = glm::clamp(zoom, 1.0f, 50.0f);  // min/max zoom
+}
+
+void framebuffer_size_callback(GLFWwindow* window, int w, int h)
+{
+    width = w;
+    height = h;
+    glViewport(0, 0, width, height);
+}
+
+
 GLFWwindow* initializeWindow()
 {
     glfwInit();
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR,3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR,3);
     glfwWindowHint(GLFW_OPENGL_CORE_PROFILE,GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(800,600,"Grid + Plane",nullptr,nullptr);
+    GLFWwindow* window = glfwCreateWindow(800,600,"Plane Simulator",nullptr,nullptr);
     glfwMakeContextCurrent(window);
 
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     glfwSetCursorPosCallback(window, mouseCallback);
+    glfwSetScrollCallback(window, scrollCallback);
+    glfwSetMouseButtonCallback(window, mouseButtonCallback);
 
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
     glEnable(GL_DEPTH_TEST);
@@ -167,10 +206,7 @@ GLuint createGridLines(GLFWwindow* window)
 }
 
 
-// -----------------------------------------
-// RENDER LOOP — moved into graphics.cpp
-// -----------------------------------------
-void render(GLFWwindow* window, GLuint planeVAO, GLuint gridVAO)
+void render(GLFWwindow* window, GLuint planeVAO, GLuint gridVAO, glm::vec3 pos)
 {
     const char* vs = R"(
         #version 330 core
@@ -205,16 +241,17 @@ void render(GLFWwindow* window, GLuint planeVAO, GLuint gridVAO)
         glClearColor(0.9,0.9,0.95,1.0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // Camera direction from mouse-look
-        glm::vec3 front;
-        front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-        front.y = sin(glm::radians(pitch));
-        front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+        float radYaw   = glm::radians(yaw);
+        float radPitch = glm::radians(pitch);
 
-        glm::vec3 cameraPos = glm::vec3(0,2,5);
+        glm::vec3 cameraPos;
+        cameraPos.x = pos.x + zoom * cos(radPitch) * cos(radYaw);
+        cameraPos.y = pos.y + zoom * sin(radPitch);
+        cameraPos.z = pos.z + zoom * cos(radPitch) * sin(radYaw);
 
-        glm::mat4 view = glm::lookAt(cameraPos, cameraPos + glm::normalize(front), glm::vec3(0,1,0));
-        glm::mat4 proj = glm::perspective(glm::radians(60.0f), 800.f/600.f, 0.1f, 200.f);
+        glm::mat4 view = glm::lookAt(cameraPos, pos, glm::vec3(0,1,0));
+        float aspect = (float)width / (float)height;
+        glm::mat4 proj = glm::perspective(glm::radians(60.0f), aspect, 0.1f, 200.0f);
 
         // ---- Plane ----
         glUseProgram(planeProg);

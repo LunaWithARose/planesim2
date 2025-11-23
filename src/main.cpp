@@ -9,7 +9,7 @@ int main()
     GLuint planeVAO = createPlaneObject({0,0,0}, {0,0,0}, window);
     GLuint gridVAO  = createGridLines(window);
 
-    render(window, planeVAO, gridVAO);
+    render(window, planeVAO, gridVAO, {0,0,0});
 
     glfwTerminate();
     return 0;

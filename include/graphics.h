@@ -16,14 +16,14 @@ GLuint compileShader(GLenum type, const char* src);
 GLuint makeProgram(const char* vsSrc, const char* fsSrc);
 
 // mouse-look globals
-extern float yaw, pitch;
+extern float yaw, pitch, zoom;
 extern double lastX, lastY;
 extern bool firstMouse;
 
 void mouseCallback(GLFWwindow* window, double xpos, double ypos);
-
+void scrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 // ⬇⬇⬇ NEW: render loop now provided by graphics.cpp
-void render(GLFWwindow* window, GLuint planeVAO, GLuint gridVAO);
+void render(GLFWwindow* window, GLuint planeVAO, GLuint gridVAO, glm::vec3 pos);
 
 #endif
 
