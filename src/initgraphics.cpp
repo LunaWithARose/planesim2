@@ -7,6 +7,10 @@
 #include <glm/gtc/type_ptr.hpp>
 
 
+// Vertex counts
+int gridXYVertexCount = 0;
+int gridYZVertexCount = 0;
+
 // -----------------------------
 // Camera / UI state
 // ----------------------------
@@ -74,6 +78,7 @@ GLFWwindow* initializeWindow()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+
 
     GLFWwindow* window = glfwCreateWindow(width, height, "Plane Simulator", nullptr, nullptr);
     if (!window) { std::cerr << "glfwCreateWindow failed\n"; glfwTerminate(); return nullptr; }
