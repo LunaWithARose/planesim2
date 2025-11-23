@@ -6,25 +6,39 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 
-// object creation
+// -----------------------------
+// Object creation
+// -----------------------------
 GLuint createPlaneObject(glm::vec3 position, glm::vec3 orientation, GLFWwindow* window);
-GLuint createGridLines();
-GLuint createYZGridLines();
+GLuint createGridLines(int N);      // XY grid, pass grid size
+GLuint createYZGridLines(int N);    // YZ grid, pass grid size
 GLFWwindow* initializeWindow();
 
-// shader helpers
+// -----------------------------
+// Shader helpers
+// -----------------------------
 GLuint compileShader(GLenum type, const char* src);
 GLuint makeProgram(const char* vsSrc, const char* fsSrc);
 
-// mouse-look globals
+// -----------------------------
+// Camera / input globals
+// -----------------------------
 extern float yaw, pitch, zoom;
 extern double lastX, lastY;
-extern bool firstMouse;
+extern bool firstMouse, rotating;
+extern int width, height;
 
+// -----------------------------
+// Input callbacks
+// -----------------------------
 void mouseCallback(GLFWwindow* window, double xpos, double ypos);
+void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 void scrollCallback(GLFWwindow* window, double xoffset, double yoffset);
-// ⬇⬇⬇ NEW: render loop now provided by graphics.cpp
+void framebuffer_size_callback(GLFWwindow* window, int w, int h);
+
+// -----------------------------
+// Render loop
+// -----------------------------
 void render(GLFWwindow* window, GLuint planeVAO, GLuint gridVAO, GLuint gridYZVAO, glm::vec3 pos);
 
 #endif
-
