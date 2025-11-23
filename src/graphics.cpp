@@ -79,51 +79,48 @@ GLuint createPlaneObject(glm::vec3 pos, glm::vec3 ori, GLFWwindow* window)
     };
 
 
+    // --- Filled cube VAO ---
     GLuint VAO, VBO, EBO;
-    glGenVertexArrays(1,&VAO);
-    glGenBuffers(1,&VBO);
-    glGenBuffers(1,&EBO);
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    glGenBuffers(1, &EBO);
 
     glBindVertexArray(VAO);
 
-    glBindBuffer(GL_ARRAY_BUFFER,VBO);
-    glBufferData(GL_ARRAY_BUFFER,sizeof(verts),verts,GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STATIC_DRAW);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER,sizeof(edges),edges,GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(idx), idx, GL_STATIC_DRAW); // <-- use triangles here
 
     glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,3*sizeof(float),(void*)0);
     glEnableVertexAttribArray(0);
 
     glBindVertexArray(0);
+
     return VAO;
 }
 
+// Cube edges
 GLuint createPlaneEdgeObject(glm::vec3 pos, glm::vec3 ori, GLFWwindow* window)
 {
-    (void)ori; (void)window;
-
-        // Filled cube vertices
     float verts[] = {
-        -1,-1,-1,  1,-1,-1,  1, 1,-1,  -1, 1,-1, // back face
-        -1,-1, 1,  1,-1, 1,  1, 1, 1,  -1, 1, 1   // front face
+        -1,-1,-1,  1,-1,-1,  1, 1,-1,  -1, 1,-1,
+        -1,-1, 1,  1,-1, 1,  1, 1, 1,  -1, 1, 1
     };
 
-    // Indices for edges
     unsigned int edges[] = {
-        0,1, 1,2, 2,3, 3,0, // back face edges
-        4,5, 5,6, 6,7, 7,4, // front face edges
-        0,4, 1,5, 2,6, 3,7  // side edges
+        0,1, 1,2, 2,3, 3,0, // back
+        4,5, 5,6, 6,7, 7,4, // front
+        0,4, 1,5, 2,6, 3,7  // sides
     };
 
-
-    GLuint VAO, VBO, EBO;
+    GLuint VAO,VBO,EBO;
     glGenVertexArrays(1,&VAO);
     glGenBuffers(1,&VBO);
     glGenBuffers(1,&EBO);
 
     glBindVertexArray(VAO);
-
     glBindBuffer(GL_ARRAY_BUFFER,VBO);
     glBufferData(GL_ARRAY_BUFFER,sizeof(verts),verts,GL_STATIC_DRAW);
 

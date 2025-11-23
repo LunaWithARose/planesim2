@@ -99,6 +99,7 @@ GLFWwindow* initializeWindow()
     glfwSetMouseButtonCallback(window, mouseButtonCallback);
 
     glEnable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE); // ensures all cube faces render
     glViewport(0, 0, width, height);
     return window;
 }

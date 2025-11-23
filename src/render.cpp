@@ -39,7 +39,7 @@ void render(GLFWwindow* window, GLuint planeVAO, GLuint edgeVAO,  GLuint gridVAO
     )";
 
     GLuint planeProg = makeProgram(vs, fsPlane);
-    GLuint edgeProg = makeProgram(vs, fsPlane);
+    GLuint edgeProg = makeProgram(vs, fsGrid);
     GLuint gridProg  = makeProgram(vs, fsGrid);
     GLuint gridYZProg = makeProgram(vs, fsGridYZ);
 
@@ -65,8 +65,9 @@ void render(GLFWwindow* window, GLuint planeVAO, GLuint edgeVAO,  GLuint gridVAO
         glUniformMatrix4fv(glGetUniformLocation(planeProg,"proj"),1,GL_FALSE,glm::value_ptr(proj));
         glUniformMatrix4fv(glGetUniformLocation(planeProg,"model"),1,GL_FALSE,glm::value_ptr(glm::mat4(1.0f)));
 
+        // Filled cube
         glBindVertexArray(planeVAO);
-        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0); // 36 indices for faces
+        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0); // 36 indices
 
         // Draw cube edges (wireframe) on top
         glUseProgram(edgeProg); // can be the same shader or different color
@@ -75,7 +76,9 @@ void render(GLFWwindow* window, GLuint planeVAO, GLuint edgeVAO,  GLuint gridVAO
         glUniformMatrix4fv(glGetUniformLocation(edgeProg,"model"),1,GL_FALSE,glm::value_ptr(glm::mat4(1.0f)));
 
         glBindVertexArray(edgeVAO);
+        glLineWidth(3.0f);  
         glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, 0); // 12 edges * 2 vertices
+        glLineWidth(1.0f);
 
         // XY grid
         glUseProgram(gridProg);
