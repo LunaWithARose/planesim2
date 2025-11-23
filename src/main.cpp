@@ -7,9 +7,10 @@ int main()
     if (!window) return -1;
 
     GLuint planeVAO = createPlaneObject({0,0,0}, {0,0,0}, window);
-    GLuint gridVAO  = createGridLines(window);
+    GLuint gridVAO  = createGridLines();
+    GLuint gridYZVAO = createYZGridLines();
 
-    render(window, planeVAO, gridVAO, {0,0,0});
+    render(window, planeVAO, gridVAO, gridYZVAO, {0,0,0});
 
     glfwTerminate();
     return 0;

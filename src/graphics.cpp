@@ -167,7 +167,7 @@ GLuint createPlaneObject(glm::vec3 pos, glm::vec3 ori, GLFWwindow* window)
 // -----------------------------------------
 // XY grid
 // -----------------------------------------
-GLuint createGridLines(GLFWwindow* window)
+GLuint createGridLines()
 {
     const int N = 20;
 
@@ -205,8 +205,50 @@ GLuint createGridLines(GLFWwindow* window)
     return VAO;
 }
 
+GLuint createYZGridLines()
+{
+    const int N = 20;
 
-void render(GLFWwindow* window, GLuint planeVAO, GLuint gridVAO, glm::vec3 pos)
+    int lines = (N * 2) + 1;        // -20..20 = 41
+    int floatsPerLine = 12;         // 4 vertices * 3 comps
+    float verts[41 * 12];           // 492 floats
+
+    int ptr = 0;
+
+    for (int i = -N; i <= N; i++)   // start from 0 instead of -N
+    {
+        float f = float(i);
+
+        // vertical line in YZ plane
+        verts[ptr++] = 0;   verts[ptr++] = f;   verts[ptr++] = -N;
+        verts[ptr++] = 0;   verts[ptr++] = f;   verts[ptr++] =  N;
+
+         // horizontal line (only positive Z)
+        verts[ptr++] = 0;   verts[ptr++] = 0;   verts[ptr++] = f;
+        verts[ptr++] = 0;   verts[ptr++] =  N;  verts[ptr++] = f;
+    }
+
+
+    GLuint VAO, VBO;
+    glGenVertexArrays(1,&VAO);
+    glGenBuffers(1,&VBO);
+
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, floatsPerLine * sizeof(float), verts, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,3*sizeof(float),(void*)0);
+    glEnableVertexAttribArray(0);
+
+    glBindVertexArray(0);
+
+    return VAO;
+}
+
+
+
+
+void render(GLFWwindow* window, GLuint planeVAO, GLuint gridVAO, GLuint gridYZVAO, glm::vec3 pos)
 {
     const char* vs = R"(
         #version 330 core
@@ -233,8 +275,17 @@ void render(GLFWwindow* window, GLuint planeVAO, GLuint gridVAO, glm::vec3 pos)
         void main() { FragColor = vec4(0.1,0.1,0.1,1.0); }
     )";
 
+    const char* fsGridYZ = R"(
+    #version 330 core
+    out vec4 FragColor;
+    void main() { FragColor = vec4(0.4, 0.4, 0.4, 1.0); }
+    )";
+
+
     GLuint planeProg = makeProgram(vs, fsPlane);
     GLuint gridProg  = makeProgram(vs, fsGrid);
+    GLuint gridYZProg = makeProgram(vs, fsGridYZ);
+
 
     while (!glfwWindowShouldClose(window))
     {
@@ -269,6 +320,13 @@ void render(GLFWwindow* window, GLuint planeVAO, GLuint gridVAO, glm::vec3 pos)
         glUniformMatrix4fv(glGetUniformLocation(gridProg,"model"),1,GL_FALSE,glm::value_ptr(glm::mat4(1.0f)));
 
         glBindVertexArray(gridVAO);
+        glDrawArrays(GL_LINES, 0, 160 * 2);
+
+        glUseProgram(gridYZProg);
+        glUniformMatrix4fv(glGetUniformLocation(gridYZProg, "view"), 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(glGetUniformLocation(gridYZProg, "proj"), 1, GL_FALSE, glm::value_ptr(proj));
+        glUniformMatrix4fv(glGetUniformLocation(gridYZProg, "model"), 1, GL_FALSE, glm::value_ptr(glm::mat4(1.0f)));
+        glBindVertexArray(gridYZVAO);
         glDrawArrays(GL_LINES, 0, 160 * 2);
 
         glfwSwapBuffers(window);

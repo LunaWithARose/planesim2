@@ -8,7 +8,8 @@
 
 // object creation
 GLuint createPlaneObject(glm::vec3 position, glm::vec3 orientation, GLFWwindow* window);
-GLuint createGridLines(GLFWwindow* window);
+GLuint createGridLines();
+GLuint createYZGridLines();
 GLFWwindow* initializeWindow();
 
 // shader helpers
@@ -23,7 +24,7 @@ extern bool firstMouse;
 void mouseCallback(GLFWwindow* window, double xpos, double ypos);
 void scrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 // ⬇⬇⬇ NEW: render loop now provided by graphics.cpp
-void render(GLFWwindow* window, GLuint planeVAO, GLuint gridVAO, glm::vec3 pos);
+void render(GLFWwindow* window, GLuint planeVAO, GLuint gridVAO, GLuint gridYZVAO, glm::vec3 pos);
 
 #endif
 
