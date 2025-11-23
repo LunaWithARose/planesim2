@@ -10,6 +10,7 @@
                 "-g",
                 "-Iinclude",
                 "src/graphics.cpp",
+                "src/initgraphics.cpp",
                 "src/physicsengine.cpp",
                 "src/main.cpp",
                 "external/glad/src/glad.c",

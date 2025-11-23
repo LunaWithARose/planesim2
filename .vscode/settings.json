@@ -10,7 +10,8 @@
         "cmath": "cpp",
         "ostream": "cpp",
         "iostream": "cpp",
-        "algorithm": "cpp"
+        "algorithm": "cpp",
+        "cassert": "cpp"
     },
     "cmake.sourceDirectory": "C:/Users/lunaw/projects/planesim2/include/glm"
 }
