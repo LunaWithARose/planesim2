@@ -1,19 +1,20 @@
 #pragma once
 #ifndef GRAPHICS_H
 #define GRAPHICS_H
+#define GLM_ENABLE_EXPERIMENTAL
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
-
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/quaternion.hpp>
 
 enum GridHalf {
-    HALF_NONE,     // full grid
-    HALF_POSITIVE, // only Y>=0 or X>=0 etc.
-    HALF_NEGATIVE  // only Y<=0 or X<=0 etc.
+    HALF_NONE,
+    HALF_POSITIVE,
+    HALF_NEGATIVE
 };
 
-// grid plane selector
 enum GridPlane {
     GRID_XY,
     GRID_YZ,
@@ -54,6 +55,13 @@ void framebuffer_size_callback(GLFWwindow* window, int w, int h);
 // -----------------------------
 // Render loop
 // -----------------------------
-void renderFrame(GLFWwindow* window, GLuint planeVAO, GLuint edgeVAO, GLuint gridVAO, GLuint gridYZVAO, const glm::vec3& pos);
+void renderFrame(GLFWwindow* window,
+                 GLuint planeVAO,
+                 GLuint edgeVAO,
+                 GLuint gridVAO,
+                 GLuint gridYZVAO,
+                 const glm::vec3& pos,
+                 const glm::quat& orientation);
 
 #endif
+
