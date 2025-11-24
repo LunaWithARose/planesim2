@@ -17,19 +17,18 @@ int main()
     };
     vector<glm::vec4> NACA_4412_data_with_Cm;
     for(auto& pt : NACA_4412_data) {
-    float alpha = pt.x;
-    float Cl    = pt.y;
-    float Cd    = pt.z;
-    float Cm    = estimateCm(alpha);
-    NACA_4412_data_with_Cm.push_back(glm::vec4(alpha, Cl, Cd, Cm));
+        float alpha = pt.x;
+        float Cl    = pt.y;
+        float Cd    = pt.z;
+        float Cm    = estimateCm(alpha);
+        NACA_4412_data_with_Cm.push_back(glm::vec4(alpha, Cl, Cd, Cm));
     }
 
     Airfoil airfoil(NACA_4412_data_with_Cm);
-    Aircraft plane = createAirplane(airfoil, {0, 15, 0}, {0, 0, 0}, 1.0f, 0.4046f, 2.0f, 0.1524f, 0.0f, 0.0f);
+    Aircraft plane = createAirplane(airfoil, {0, 15, 0}, {0, 0, 0}, 2.0f, 0.4046f, 1.0f, 0.1524f, 0.0f, 0.0f);
     // N
-    plane.velocity.x = 10.0f;
-    plane.thrust = 0.0f;
-    float aoa = 0.0f; // deg
+    plane.thrust = 20.0f;
+    float aoa = 5.0f; // deg
     GLFWwindow* window = initializeWindow();
     if (!window) {
         cerr << "Failed to initialize window.\n";
