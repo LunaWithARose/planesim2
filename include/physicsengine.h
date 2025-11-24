@@ -1,49 +1,80 @@
 #pragma once
-#ifndef MY_CLASS_H
-#define MY_CLASS_H
-
-#include <glm/glm.hpp>
 #include <vector>
-#include <tuple>
-#include <algorithm>
+#include <glm/glm.hpp>
 
-double scale(double x, double x_min, double x_max, double y_min, double y_max);
+// ---------------------------
+// Aerodynamic Coefficients
+// ---------------------------
+struct AeroCoeffs {
+    float Cl;       // Lift coefficient
+    float Cd;       // Drag coefficient
+    float Cm;       // Pitch moment coefficient
+    float Cl_roll;  // Roll moment coefficient
+    float Cn_yaw;   // Yaw moment coefficient
+};
 
-struct Airfoil {
+// ---------------------------
+// Airfoil Class
+// ---------------------------
+class Airfoil {
+public:
+    std::vector<glm::vec4> data; // x=alpha, y=Cl, z=Cd, w=Cm
     float min_alpha, max_alpha;
-    std::vector<glm::vec3> data;
 
-    Airfoil(const std::vector<glm::vec3>& curve);
+    Airfoil(const std::vector<glm::vec4>& curve);
 
-    std::tuple<float, float> sample(float alpha) const {
-        int i = static_cast<int>(scale(alpha, min_alpha, max_alpha, 0, data.size() - 1));
-        i = std::clamp(i, 0, (int)data.size() - 1);
-        return { data[i].y, data[i].z };
-    }
+    // Lookup aerodynamic coefficients (linear interpolation)
+    AeroCoeffs sample(float alpha);
 };
 
+// ---------------------------
+// Aircraft Struct
+// ---------------------------
 struct Aircraft {
-    glm::vec3 position = glm::vec3(0.0f);
-    glm::vec3 velocity = glm::vec3(0.0f);
-    glm::vec3 acceleration = glm::vec3(0.0f);
-    glm::vec3 orientation = glm::vec3(0.0f);
-
-    glm::vec3 lift = glm::vec3(0.0f);
-    glm::vec3 drag = glm::vec3(0.0f);
-    glm::vec3 thrustVec = glm::vec3(0.0f);
-    glm::vec3 totalForce = glm::vec3(0.0f);
-
-    float mass = 0.0f;
-    float wingArea = 0.0f;
-    float wingspan = 0.0f;
-    float thrust = 0.0f;
-
     Airfoil airfoil;
-    Aircraft(const Airfoil& af) : airfoil(af) {}
+
+    glm::vec3 position;
+    glm::vec3 velocity;
+    glm::vec3 acceleration;
+
+    glm::vec3 orientation;      // Euler angles: pitch, roll, yaw
+    glm::vec3 angularVelocity;  // rad/s
+    glm::vec3 angularAcceleration;
+
+    float mass;
+    float wingArea;
+    float wingspan;
+    float chord; // mean aerodynamic chord
+    float thrust;
+    float inertia; // Simplified scalar inertia
+
+    // Forces
+    glm::vec3 lift;
+    glm::vec3 drag;
+    glm::vec3 thrustVec;
+    glm::vec3 totalForce;
+
+    // Moments
+    float pitchMoment;
+    float rollMoment;
+    float yawMoment;
+
+    Aircraft(const Airfoil& foil);
 };
 
+// ---------------------------
+// Utility Functions
+// ---------------------------
 float roundToQuarter(float x);
-void updatePhysics(Aircraft& plane, float aoa, float dt);
-Aircraft createAirplane(const Airfoil& foil, glm::vec3 position = glm::vec3(0.0f), glm::vec3 orientation = glm::vec3(0.0f), float mass = 1.0f, float wingArea = 0.4046f, float wingspan = 2.0f);
 
-#endif
+// ---------------------------
+// Physics Update
+// ---------------------------
+void updatePhysics(Aircraft& plane, float aoa, float sideslip, float dt);
+
+float estimateCm(float alpha);
+
+// ---------------------------
+// Aircraft Factory
+// ---------------------------
+Aircraft createAirplane(const Airfoil& foil, glm::vec3 position, glm::vec3 orientation, float mass, float wingArea, float wingspan, float chord, float thrust, float inertia);

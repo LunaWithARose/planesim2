@@ -1,4 +1,5 @@
 #include "graphics.h"
+#include "physicsengine.h"
 
 #include <vector>
 #include <iostream>
@@ -6,10 +7,15 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-// -----------------------------
-// Render loop
-// -----------------------------
-void render(GLFWwindow* window, GLuint planeVAO, GLuint edgeVAO,  GLuint gridVAO, GLuint gridYZVAO, glm::vec3 pos)
+//
+// Render ONE FRAME ONLY
+//
+void renderFrame(GLFWwindow* window,
+                 GLuint planeVAO,
+                 GLuint edgeVAO,
+                 GLuint gridVAO,
+                 GLuint gridYZVAO,
+                 const glm::vec3& pos)
 {
     const char* vs = R"(
         #version 330 core
@@ -17,7 +23,9 @@ void render(GLFWwindow* window, GLuint planeVAO, GLuint edgeVAO,  GLuint gridVAO
         uniform mat4 view;
         uniform mat4 proj;
         uniform mat4 model;
-        void main() { gl_Position = proj * view * model * vec4(aPos,1.0); }
+        void main() {
+            gl_Position = proj * view * model * vec4(aPos,1.0);
+        }
     )";
 
     const char* fsPlane = R"(
@@ -38,71 +46,76 @@ void render(GLFWwindow* window, GLuint planeVAO, GLuint edgeVAO,  GLuint gridVAO
         void main(){ FragColor = vec4(0.4,0.4,0.4,1.0); }
     )";
 
-    GLuint planeProg = makeProgram(vs, fsPlane);
-    GLuint edgeProg = makeProgram(vs, fsGrid);
-    GLuint gridProg  = makeProgram(vs, fsGrid);
-    GLuint gridYZProg = makeProgram(vs, fsGridYZ);
+    static GLuint planeProg = makeProgram(vs, fsPlane);
+    static GLuint edgeProg  = makeProgram(vs, fsGrid);
+    static GLuint gridProg  = makeProgram(vs, fsGrid);
+    static GLuint gridYZProg = makeProgram(vs, fsGridYZ);
 
-    while(!glfwWindowShouldClose(window)) {
-        glClearColor(0.9f,0.9f,0.95f,1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClearColor(0.9f,0.9f,0.95f,1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        float radYaw = glm::radians(yaw);
-        float radPitch = glm::radians(pitch);
+    // -----------------------------
+    // Camera
+    // -----------------------------
+    float radYaw = glm::radians(yaw);
+    float radPitch = glm::radians(pitch);
 
-        glm::vec3 cameraPos;
-        cameraPos.x = pos.x + zoom * cos(radPitch) * cos(radYaw);
-        cameraPos.y = pos.y + zoom * sin(radPitch);
-        cameraPos.z = pos.z + zoom * cos(radPitch) * sin(radYaw);
+    glm::vec3 cameraPos;
+    cameraPos.x = pos.x + zoom * cos(radPitch) * cos(radYaw);
+    cameraPos.y = pos.y + zoom * sin(radPitch);
+    cameraPos.z = pos.z + zoom * cos(radPitch) * sin(radYaw);
 
-        glm::mat4 view = glm::lookAt(cameraPos,pos,glm::vec3(0,1,0));
-        float aspect = float(width)/float(height);
-        glm::mat4 proj = glm::perspective(glm::radians(60.0f), aspect, 0.1f, 200.0f);
+    glm::mat4 view = glm::lookAt(cameraPos, pos, glm::vec3(0,1,0));
+    float aspect = float(width) / float(height);
+    glm::mat4 proj = glm::perspective(glm::radians(60.0f), aspect, 0.1f, 200.0f);
 
-        // Draw filled cube
-        glUseProgram(planeProg);
-        glUniformMatrix4fv(glGetUniformLocation(planeProg,"view"),1,GL_FALSE,glm::value_ptr(view));
-        glUniformMatrix4fv(glGetUniformLocation(planeProg,"proj"),1,GL_FALSE,glm::value_ptr(proj));
-        glUniformMatrix4fv(glGetUniformLocation(planeProg,"model"),1,GL_FALSE,glm::value_ptr(glm::mat4(1.0f)));
+    glm::mat4 model = glm::translate(glm::mat4(1.0f), pos);
 
-        // Filled cube
-        glBindVertexArray(planeVAO);
-        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0); // 36 indices
+    // -----------------------------
+    // Draw cube (filled)
+    // -----------------------------
+    glUseProgram(planeProg);
+    glUniformMatrix4fv(glGetUniformLocation(planeProg,"view"),1,GL_FALSE,glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(planeProg,"proj"),1,GL_FALSE,glm::value_ptr(proj));
+    glUniformMatrix4fv(glGetUniformLocation(planeProg,"model"),1,GL_FALSE,glm::value_ptr(model));
 
-        // Draw cube edges (wireframe) on top
-        glUseProgram(edgeProg); // can be the same shader or different color
-        glUniformMatrix4fv(glGetUniformLocation(edgeProg,"view"),1,GL_FALSE,glm::value_ptr(view));
-        glUniformMatrix4fv(glGetUniformLocation(edgeProg,"proj"),1,GL_FALSE,glm::value_ptr(proj));
-        glUniformMatrix4fv(glGetUniformLocation(edgeProg,"model"),1,GL_FALSE,glm::value_ptr(glm::mat4(1.0f)));
+    glBindVertexArray(planeVAO);
+    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
 
-        glBindVertexArray(edgeVAO);
-        glLineWidth(3.0f);  
-        glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, 0); // 12 edges * 2 vertices
-        glLineWidth(1.0f);
+    // -----------------------------
+    // Draw cube edges
+    // -----------------------------
+    glUseProgram(edgeProg);
+    glUniformMatrix4fv(glGetUniformLocation(edgeProg,"view"),1,GL_FALSE,glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(edgeProg,"proj"),1,GL_FALSE,glm::value_ptr(proj));
+    glUniformMatrix4fv(glGetUniformLocation(edgeProg,"model"),1,GL_FALSE,glm::value_ptr(model));
 
-        // XY grid
-        glUseProgram(gridProg);
-        glUniformMatrix4fv(glGetUniformLocation(gridProg,"view"),1,GL_FALSE,glm::value_ptr(view));
-        glUniformMatrix4fv(glGetUniformLocation(gridProg,"proj"),1,GL_FALSE,glm::value_ptr(proj));
-        glUniformMatrix4fv(glGetUniformLocation(gridProg,"model"),1,GL_FALSE,glm::value_ptr(glm::mat4(1.0f)));
+    glBindVertexArray(edgeVAO);
+    glLineWidth(3.0f);
+    glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, 0);
+    glLineWidth(1.0f);
 
-        glBindVertexArray(gridVAO);
-        if(gridXYVertexCount>0) glDrawArrays(GL_LINES,0,gridXYVertexCount);
+    // -----------------------------
+    // Draw XY grid
+    // -----------------------------
+    glUseProgram(gridProg);
+    glUniformMatrix4fv(glGetUniformLocation(gridProg,"view"),1,GL_FALSE,glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(gridProg,"proj"),1,GL_FALSE,glm::value_ptr(proj));
+    glUniformMatrix4fv(glGetUniformLocation(gridProg,"model"),1,GL_FALSE,glm::value_ptr(glm::mat4(1.0f)));
 
-        // YZ grid
-        glUseProgram(gridYZProg);
-        glUniformMatrix4fv(glGetUniformLocation(gridYZProg,"view"),1,GL_FALSE,glm::value_ptr(view));
-        glUniformMatrix4fv(glGetUniformLocation(gridYZProg,"proj"),1,GL_FALSE,glm::value_ptr(proj));
-        glUniformMatrix4fv(glGetUniformLocation(gridYZProg,"model"),1,GL_FALSE,glm::value_ptr(glm::mat4(1.0f)));
+    glBindVertexArray(gridVAO);
+    if (gridXYVertexCount > 0)
+        glDrawArrays(GL_LINES, 0, gridXYVertexCount);
 
-        glBindVertexArray(gridYZVAO);
-        if(gridYZVertexCount>0) glDrawArrays(GL_LINES,0,gridYZVertexCount);
+    // -----------------------------
+    // Draw YZ grid
+    // -----------------------------
+    glUseProgram(gridYZProg);
+    glUniformMatrix4fv(glGetUniformLocation(gridYZProg,"view"),1,GL_FALSE,glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(gridYZProg,"proj"),1,GL_FALSE,glm::value_ptr(proj));
+    glUniformMatrix4fv(glGetUniformLocation(gridYZProg,"model"),1,GL_FALSE,glm::value_ptr(glm::mat4(1.0f)));
 
-        glfwSwapBuffers(window);
-        glfwPollEvents();
-    }
-
-    glDeleteProgram(planeProg);
-    glDeleteProgram(gridProg);
-    glDeleteProgram(gridYZProg);
+    glBindVertexArray(gridYZVAO);
+    if (gridYZVertexCount > 0)
+        glDrawArrays(GL_LINES, 0, gridYZVertexCount);
 }

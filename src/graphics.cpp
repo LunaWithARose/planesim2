@@ -9,6 +9,8 @@
 // -----------------------------
 // Shader helpers
 // -----------------------------
+
+
 GLuint compileShader(GLenum type, const char* src)
 {
     GLuint sh = glCreateShader(type);
@@ -136,68 +138,117 @@ GLuint createPlaneEdgeObject(glm::vec3 pos, glm::vec3 ori, GLFWwindow* window)
 
 
 
-// -----------------------------
-// XY grid
-// -----------------------------
-GLuint createGridLines(int N)
+GLuint createGrid(int N, GridPlane plane, GridHalf half, int* outVertexCount)
 {
     std::vector<float> verts;
-    for (int i = -N; i <= N; ++i) {
-        float f = float(i);
-        verts.push_back(-float(N)); verts.push_back(0.0f); verts.push_back(f);
-        verts.push_back( float(N)); verts.push_back(0.0f); verts.push_back(f);
-        verts.push_back(f); verts.push_back(0.0f); verts.push_back(-float(N));
-        verts.push_back(f); verts.push_back(0.0f); verts.push_back( float(N));
+
+    auto allow = [&](float axisValue) {
+        if (half == HALF_NONE) return true;
+        if (half == HALF_POSITIVE) return axisValue >= 0.0f;
+        if (half == HALF_NEGATIVE) return axisValue <= 0.0f;
+        return true;
+    };
+
+    // ------------------------------------
+    // XY PLANE (Z is constant)
+    // ------------------------------------
+    if (plane == GRID_XY)
+    {
+        // --- Vertical lines along Y at each X ---
+        int xStart = -N, xEnd = N;
+        if (half == HALF_POSITIVE) { xStart = 0; }     // only x >= 0
+        else if (half == HALF_NEGATIVE) { xEnd = 0; }  // only x <= 0
+
+        for (int x = xStart; x <= xEnd; ++x)
+        {
+            float fx = float(x);
+            verts.push_back(fx); verts.push_back(-float(N)); verts.push_back(0.0f);
+            verts.push_back(fx); verts.push_back( float(N)); verts.push_back(0.0f);
+        }
+
+        // --- Horizontal lines along X at each Y (always full range) ---
+        for (int y = -N; y <= N; ++y)
+        {
+            float fy = float(y);
+            verts.push_back(-float(N)); verts.push_back(fy); verts.push_back(0.0f);
+            verts.push_back( float(N)); verts.push_back(fy); verts.push_back(0.0f);
+        }
     }
 
-    gridXYVertexCount = static_cast<int>(verts.size()/3);
 
+    // ------------------------------------
+    // YZ PLANE (X is constant)
+    // ------------------------------------
+    else if (plane == GRID_YZ)
+    {
+        // --- Vertical lines along Y for every Z (always draw full -N..N in Z) ---
+        for (int z = -N; z <= N; ++z)
+        {
+            float fz = float(z);
+            verts.push_back(0.0f); verts.push_back(0.0f); verts.push_back(fz); // (0, 0, z)
+            verts.push_back(0.0f); verts.push_back(float(N)); verts.push_back(fz); // (0, N, z)
+        }
+
+        // --- Horizontal lines along Z at each Y, but filter by half (Y range) ---
+        int yStart = -N, yEnd = N;
+        if (half == HALF_POSITIVE) { yStart = 0; }      // only y >= 0
+        else if (half == HALF_NEGATIVE) { yEnd = 0; }   // only y <= 0
+
+        for (int y = yStart; y <= yEnd; ++y)
+        {
+            float fy = float(y);
+            verts.push_back(0.0f); verts.push_back(fy); verts.push_back(-float(N)); // (0, y, -N)
+            verts.push_back(0.0f); verts.push_back(fy); verts.push_back( float(N)); // (0, y, +N)
+        }
+    }
+
+
+
+    // ------------------------------------
+    // XZ PLANE (Y is constant)
+    // ------------------------------------
+    else if (plane == GRID_XZ)
+    {
+        // --- Vertical lines along Z at each X ---
+        int xStart = -N, xEnd = N;
+        if (half == HALF_POSITIVE) { xStart = 0; }      // only x >= 0
+        else if (half == HALF_NEGATIVE) { xEnd = 0; }   // only x <= 0
+
+        for (int x = xStart; x <= xEnd; ++x)
+        {
+            float fx = float(x);
+            verts.push_back(fx); verts.push_back(0.0f); verts.push_back(-float(N));
+            verts.push_back(fx); verts.push_back(0.0f); verts.push_back( float(N));
+        }
+
+        // --- Horizontal lines along X at each Z (always full range) ---
+        for (int z = -N; z <= N; ++z)
+        {
+            float fz = float(z);
+            verts.push_back(-float(N)); verts.push_back(0.0f); verts.push_back(fz);
+            verts.push_back( float(N)); verts.push_back(0.0f); verts.push_back(fz);
+        }
+    }
+
+
+    // ------------------------------------
+    // Send count back
+    // ------------------------------------
+    if (outVertexCount)
+        *outVertexCount = verts.size() / 3;
+
+    // ------------------------------------
+    // Build VAO/VBO
+    // ------------------------------------
     GLuint VAO, VBO;
-    glGenVertexArrays(1,&VAO);
-    glGenBuffers(1,&VBO);
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
 
     glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER,VBO);
-    glBufferData(GL_ARRAY_BUFFER, verts.size()*sizeof(float), verts.data(), GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, verts.size() * sizeof(float), verts.data(), GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,3*sizeof(float),(void*)0);
-    glEnableVertexAttribArray(0);
-
-    glBindVertexArray(0);
-    return VAO;
-}
-
-// -----------------------------
-// YZ grid
-// -----------------------------
-GLuint createYZGridLines(int N)
-{
-   std::vector<float> verts;
-
-    // Vertical lines along Y at each Z (now start from Y=0)
-    for (int z = -N; z <= N; ++z) {
-        verts.push_back(0.0f); verts.push_back(0.0f); verts.push_back(float(z));   // bottom vertex at y=0
-        verts.push_back(0.0f); verts.push_back(float(N)); verts.push_back(float(z)); // top vertex at y=N
-    }
-
-    // Horizontal lines along Z at each Y (only above origin, Y=0..N)
-    for (int y = 0; y <= N; ++y) {
-        verts.push_back(0.0f); verts.push_back(float(y)); verts.push_back(-float(N)); // start of line along Z
-        verts.push_back(0.0f); verts.push_back(float(y)); verts.push_back(float(N));  // end of line along Z
-    }
-
-
-    gridYZVertexCount = static_cast<int>(verts.size()/3);
-
-    GLuint VAO, VBO;
-    glGenVertexArrays(1,&VAO);
-    glGenBuffers(1,&VBO);
-
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER,VBO);
-    glBufferData(GL_ARRAY_BUFFER, verts.size()*sizeof(float), verts.data(), GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,3*sizeof(float),(void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
     glBindVertexArray(0);
